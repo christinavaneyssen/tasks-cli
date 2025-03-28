@@ -28,12 +28,12 @@ class PullRequestService:
         self.devops_client = DevOpsClient()
         self.repo_mapping = get_repo_ocid_mapping()
 
-    def get_pull_requests(self, repo: str, filters: PullRequestFilter) -> list[PullRequest]:
+    def get_pull_requests(self, repo: str, filter: PullRequestFilter) -> list[PullRequest]:
         """Get pull requests for a repository.
 
         Args:
             repo: Repository name
-            filters: What to filter by
+            filter: What to filter by
 
         Returns:
             List of PullRequest domain objects
@@ -43,7 +43,7 @@ class PullRequestService:
         except KeyError as e:
             raise ValueError(f"Repository '{repo}' not found in configuration. ") from e
 
-        data = self.devops_client.get_pull_requests(repo_id, **filters.to_oci())
+        data = self.devops_client.get_pull_requests(repo_id, **filter.to_oci())
 
         return [PullRequest(**pr_data) for pr_data in data]
 
@@ -85,12 +85,12 @@ class PullRequestService:
         return diff_data
 
     def list_pull_requests(self, repos: list[str], **kwargs) -> list[PullRequest]:
-        filters = PullRequestFilter(**kwargs)
+        filter = PullRequestFilter(**kwargs)
         all_pull_requests = []
 
         for repo in repos:
             try:
-                repo_pull_requests = self.get_pull_requests(repo, filters)
+                repo_pull_requests = self.get_pull_requests(repo, filter)
                 all_pull_requests.extend(repo_pull_requests)
             except ValueError:
                 logger.info(f"Repository {repo} not found in config.ini")
