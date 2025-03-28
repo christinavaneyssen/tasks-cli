@@ -1,42 +1,40 @@
-import click
-import json
-from src.services.devops_service import DevOpsService
-from src.infrastructure.oci_error_handling import OCIServiceError
+"""CLI commands for working with pull requests."""
+from typing import Literal
 
-pass_devops_service = click.make_pass_decorator(DevOpsService, ensure=True)
+import click
+from tabulate import tabulate
+
+from src.services.pull_requests.service import PullRequestService
+
 
 @click.group()
-def pull_request_commands():
+def pull_requests() -> None:
+    """Commands for working with pull requests."""
     pass
 
-@pull_request_commands.command()
-@click.option("--pull-request-id")
-@pass_devops_service
-def approve(devops_service, pull_request_id):
-    try:
-        devops_service.pull_request_approve(pull_request_id)
-        click.echo(f"Pull request {pull_request_id} approved")
-    except OCIServiceError as e:
-        click.echo(f"Unexpected error: {e}")
 
-@pull_request_commands.command()
-@click.option("--pull-request-id")
-@pass_devops_service
-def merge(devops_service, pull_request_id):
-    try:
-        devops_service.merge(pull_request_id)
-        click.echo(f"Pull request {pull_request_id} merged")
-    except OCIServiceError as e:
-        click.echo(f"Unexpected error: {e}")
+@pull_requests.command()
+@click.argument("repos", nargs=-1)
+@click.option("--status", type=click.Choice(["open"]), default="open")
+@click.option("--limit", type=int, default=10)
+def list(repos: tuple[str, ...], status: Literal["open"], limit: int) -> None:
+    """List pull requests for a repository."""
+    service = PullRequestService()
+    kwargs = {"status": status, "limit": limit}
+    pull_requests = service.list_pull_requests(
+        repos, **kwargs)
 
-
-@pull_request_commands.command()
-@click.argument("json_file", type=click.File("r"))
-@pass_devops_service
-def create(devops_service, json_file):
-    try:
-        contents = json.load(json_file)
-        devops_service.create_pull_request(contents)
-        click.echo(f"Pull request created ")
-    except OCIServiceError as e:
-        click.echo(f"Unexpected error: {e}")
+    if pull_requests:
+        headers = ["Title", "Status", "Created", "Changes"]
+        data = [
+            [
+                pr.title,
+                pr.status,
+                pr.created_at.strftime("%Y-%m-%d %H:%M"),
+                f"{pr.total_changes} (+{pr.lines_added}/-{pr.lines_deleted})"
+            ]
+            for pr in pull_requests
+        ]
+        click.echo(tabulate(data, headers=headers, tablefmt="pretty"))
+    else:
+        click.echo("No pull requests found.")

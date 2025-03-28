@@ -1,1 +1,4 @@
 .idea
+.envrc
+venv
+*egg*
