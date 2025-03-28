@@ -7,10 +7,9 @@ converting between OCI data models and application domain models.
 import logging
 from typing import Any
 
-from clients.oci.devops import DevOpsClient
-from models.app.pull_request import PullRequestFilter
+from src.clients.oci.devops import DevOpsClient
 from src.core.config import config
-from src.models.app.pull_request import PullRequest
+from src.models.app.pull_request import PullRequest, PullRequestFilter
 
 logger = logging.getLogger(__name__)
 

@@ -16,6 +16,7 @@ from oci.auth.signers import SecurityTokenSigner
 from oci.util import to_dict
 
 from src.core.config import config
+from src.core.errors import SystemError, UserError
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class OCIBaseClient:
         """Get the OCI profile name from config or environment variable."""
         # Priority: explicitly set in config > environment variable > DEFAULT
         return (
-                config.get('oci', 'profile_name', fallback=None) or
+                config.get('oci', 'profile_name') or
                 os.environ.get('OCI_CLI_PROFILE', 'DEFAULT')
         )
 
@@ -85,11 +86,26 @@ class OCIBaseClient:
             token_container = SecurityTokenContainer(None, token)
 
             if not token_container.valid():
-                raise RuntimeError("Refresh your OCI CLI session")
+                raise UserError(
+                    "Your OCI session has expired.",
+                    fix_instructions=(
+                        "1. To refresh your session run: "
+                        "oci session authenticate --profile <your profile name> \n"
+                        "2. To validate your session run: "
+                        "oci session validate --profile <your profile name>"
+                    )
+                )
 
             return SecurityTokenSigner(token, private_key)
-        except FileNotFoundError:
-            raise
+        except FileNotFoundError as e:
+            raise UserError(
+                f"OCI security token file not found at {expanded_token_path}",
+                fix_instructions=(
+                    "1. For instructions, see "
+                    "https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm \n"
+                ),
+                original_error=e
+            ) from None
 
     def _create_client(self) -> T:
         """Create the OCI client instance."""
@@ -125,7 +141,16 @@ class OCIBaseClient:
         Returns:
             List of dictionaries containing the transformed data
         """
-        response = getattr(self.client, operation)(**kwargs)
+        try:
+            response = getattr(self.client, operation)(**kwargs)
+        except oci.exceptions.ServiceError:
+            raise
+        except Exception as e:
+            raise SystemError(
+                "Unexpected error occurred",
+                debug_info=str(e),
+                original_error=e
+            ) from None
 
         if transform_func is None:
             transform_func = to_dict

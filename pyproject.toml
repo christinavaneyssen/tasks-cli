@@ -63,6 +63,8 @@ ignore = [
     "D102", # Missing docstring in public method
     "D103", # Missing docstring in public function
     "D104", # Missing docstring in public package
+    "D105", # Missing docstring in magic method
+    "D107", # Missing docstring
     "D415", # First line should end with a period, question mark, or exclamation point
     "D417", # Missing argument description in the docstring for kwargs
     "ANN204", # Missing return type annotation for special method
